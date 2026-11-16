@@ -23,7 +23,7 @@ const FALLBACK: Record<string, string> = {
   Mac: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=70",
   "Apple Watch": "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?auto=format&fit=crop&w=800&q=70",
   AirPods: "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=800&q=70",
-  Aksesuar: "https://images.unsplash.com/photo-1588156979402-15f5a8cb5d94?auto=format&fit=crop&w=800&q=70",
+  Aksesuar: "https://images.unsplash.com/photo-1625842268584-8f3296236761?auto=format&fit=crop&w=800&q=70",
 };
 export const coverImage = (d: { imageUrls?: string[]; category: string }) =>
   d.imageUrls?.[0] || FALLBACK[d.category] || FALLBACK.Aksesuar;
