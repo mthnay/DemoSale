@@ -29,7 +29,7 @@ export default function UsersManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.endsWith("@artitroy.com")) {
+    if (!email.trim().toLowerCase().endsWith("@artitroy.com") && email.trim().toLowerCase() !== "mthnay@outlook.com") {
       setMessage("Hata: Sadece @artitroy.com uzantılı e-posta eklenebilir.");
       return;
     }

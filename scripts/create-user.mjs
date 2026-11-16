@@ -7,7 +7,8 @@ import pg from "pg";
 
 const [emailArg, roleArg = "user"] = process.argv.slice(2);
 const email = String(emailArg ?? "").trim().toLowerCase();
-if (!email.endsWith("@artitroy.com") || !["admin", "user"].includes(roleArg)) {
+const EXTRA_ALLOWED_EMAILS = ["mthnay@outlook.com"];
+if (!(email.endsWith("@artitroy.com") || EXTRA_ALLOWED_EMAILS.includes(email)) || !["admin", "user"].includes(roleArg)) {
   console.error("Kullanım: npm run user:create -- <ad@artitroy.com> <admin|user>");
   process.exit(1);
 }

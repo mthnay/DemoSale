@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { ALLOWED_DOMAIN, handle, HttpError, requireAdmin } from "@/lib/auth";
+import { isAllowedEmail, handle, HttpError, requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
 
 export async function GET() {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const password = String(body.password ?? "");
     const role = body.role === "admin" ? "admin" : "user";
 
-    if (!email.endsWith(ALLOWED_DOMAIN)) {
+    if (!isAllowedEmail(email)) {
       throw new HttpError(400, "Sadece @artitroy.com uzantılı e-posta eklenebilir.");
     }
     if (password.length < 8) throw new HttpError(400, "Şifre en az 8 karakter olmalı.");

@@ -1,12 +1,12 @@
 import bcrypt from "bcryptjs";
-import { ALLOWED_DOMAIN, createSession, handle, HttpError } from "@/lib/auth";
+import { isAllowedEmail, createSession, handle, HttpError } from "@/lib/auth";
 import { query } from "@/lib/db";
 
 export async function POST(request: Request) {
   return handle(async () => {
     const { email, password } = await request.json().catch(() => ({}));
     const normalized = String(email ?? "").trim().toLowerCase();
-    if (!normalized.endsWith(ALLOWED_DOMAIN)) {
+    if (!isAllowedEmail(normalized)) {
       throw new HttpError(400, "Sadece @artitroy.com e-posta adresleri giriş yapabilir.");
     }
     const rows = await query<{ id: string; email: string; role: string; password_hash: string }>(

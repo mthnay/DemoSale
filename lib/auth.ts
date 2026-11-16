@@ -7,6 +7,10 @@ import { query } from "./db";
 export const SESSION_COOKIE = "troy_session";
 const SESSION_DAYS = 30;
 export const ALLOWED_DOMAIN = "@artitroy.com";
+// Alan adı dışında izin verilen tekil adresler (db/schema.sql'deki kısıtla aynı tutun)
+export const EXTRA_ALLOWED_EMAILS = ["mthnay@outlook.com"];
+export const isAllowedEmail = (email: string) =>
+  email.endsWith(ALLOWED_DOMAIN) || EXTRA_ALLOWED_EMAILS.includes(email);
 
 export type Role = "admin" | "user";
 export interface SessionUser {

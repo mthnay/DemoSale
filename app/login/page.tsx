@@ -24,7 +24,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    if (!email.endsWith("@artitroy.com")) {
+    if (!email.trim().toLowerCase().endsWith("@artitroy.com") && email.trim().toLowerCase() !== "mthnay@outlook.com") {
       setError("Sadece @artitroy.com e-posta adresleri giriş yapabilir.");
       return;
     }

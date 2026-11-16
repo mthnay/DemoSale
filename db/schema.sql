@@ -12,10 +12,16 @@ SET search_path = troydemosales;
 
 CREATE TABLE IF NOT EXISTS users (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email         text NOT NULL UNIQUE CHECK (email = lower(email) AND email LIKE '%@artitroy.com'),
+  email         text NOT NULL UNIQUE,
   password_hash text NOT NULL,
   role          text NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
   created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- E-posta kuralı: @artitroy.com + tekil istisnalar (lib/auth.ts EXTRA_ALLOWED_EMAILS ile aynı)
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_check;
+ALTER TABLE users ADD CONSTRAINT users_email_check CHECK (
+  email = lower(email) AND (email LIKE '%@artitroy.com' OR email IN ('mthnay@outlook.com'))
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
