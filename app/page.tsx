@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 import { Settings } from "lucide-react";
@@ -40,12 +39,7 @@ export default function Home() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "devices"));
-        const list: DeviceData[] = [];
-        querySnapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() } as DeviceData);
-        });
-        setDevices(list);
+        setDevices(await api<DeviceData[]>("/api/devices"));
       } catch (error) {
         console.error("Error fetching devices", error);
       } finally {

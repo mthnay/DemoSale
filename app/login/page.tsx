@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./page.module.css";
@@ -14,7 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, login } = useAuth();
 
   useEffect(() => {
     if (!loading && user) {
@@ -33,7 +31,7 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await login(email, password);
       router.push("/");
     } catch (err: any) {
       console.error("Giriş Hatası:", err);

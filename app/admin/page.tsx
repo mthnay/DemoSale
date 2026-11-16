@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { collection, getDocs, query, where, limit, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import Link from "next/link";
 
 export default function AdminDashboard() {
@@ -14,22 +13,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [devicesSnap, pendingSnap, usersSnap, recentSnap] = await Promise.all([
-          getDocs(collection(db, "devices")),
-          getDocs(query(collection(db, "requests"), where("status", "==", "pending"))),
-          getDocs(collection(db, "users")),
-          getDocs(query(collection(db, "requests"), orderBy("createdAt", "desc"), limit(5)))
-        ]);
-
-        setStats({
-          devices: devicesSnap.size,
-          pendingRequests: pendingSnap.size,
-          users: usersSnap.size
-        });
-
-        const recentList: any[] = [];
-        recentSnap.forEach((doc) => recentList.push({ id: doc.id, ...doc.data() }));
-        setRecentRequests(recentList);
+        const data = await api<{ stats: typeof stats; recent: any[] }>("/api/admin/stats");
+        setStats(data.stats);
+        setRecentRequests(data.recent);
 
       } catch (error) {
         console.error("Dashboard fetch error:", error);

@@ -1,14 +1,19 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { api } from "@/lib/api";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: "admin" | "user";
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   role: "admin" | "user" | null;
   loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -16,65 +21,33 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   role: null,
   loading: true,
+  login: async () => {},
   logout: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<"admin" | "user" | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Domain check fallback
-        if (!firebaseUser.email?.endsWith("@artitroy.com")) {
-          await signOut(auth);
-          setUser(null);
-          setRole(null);
-          setLoading(false);
-          return;
-        }
-
-        setUser(firebaseUser);
-        
-        // Kurucu Admin Yetkisi (Hardcoded)
-        if (firebaseUser.email === "metehan.ay@artitroy.com") {
-          setRole("admin");
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch role from Firestore (diğer kullanıcılar için)
-        try {
-          const userDocRef = doc(db, "users", firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists()) {
-            setRole(userDoc.data().role as "admin" | "user");
-          } else {
-            setRole("user"); // Default fallback
-          }
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-          setRole("user");
-        }
-      } else {
-        setUser(null);
-        setRole(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    api<{ user: AuthUser | null }>("/api/auth/me")
+      .then((r) => setUser(r.user))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
-  const logout = async () => {
-    await signOut(auth);
-  };
+  const login = useCallback(async (email: string, password: string) => {
+    const r = await api<{ user: AuthUser }>("/api/auth/login", { method: "POST", body: { email, password } });
+    setUser(r.user);
+  }, []);
+
+  const logout = useCallback(async () => {
+    await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+    setUser(null);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, logout }}>
+    <AuthContext.Provider value={{ user, role: user?.role ?? null, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

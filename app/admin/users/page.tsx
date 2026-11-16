@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, setDoc, collection, getDocs } from "firebase/firestore";
-import { secondaryAuth, db } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 
 interface UserData {
@@ -22,12 +20,7 @@ export default function UsersManagement() {
   const [message, setMessage] = useState("");
 
   const fetchUsers = async () => {
-    const querySnapshot = await getDocs(collection(db, "users"));
-    const usersList: UserData[] = [];
-    querySnapshot.forEach((doc) => {
-      usersList.push({ id: doc.id, ...doc.data() } as UserData);
-    });
-    setUsers(usersList);
+    setUsers(await api<UserData[]>("/api/users"));
   };
 
   useEffect(() => {
@@ -44,16 +37,7 @@ export default function UsersManagement() {
     setMessage("");
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-      const newUserId = userCredential.user.uid;
-      
-      await setDoc(doc(db, "users", newUserId), {
-        email: email,
-        role: role,
-        createdAt: new Date().toISOString()
-      });
-
-      await signOut(secondaryAuth);
+      await api("/api/users", { method: "POST", body: { email, password, role } });
 
       setMessage("Kullanıcı başarıyla oluşturuldu.");
       setEmail("");

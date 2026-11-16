@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
@@ -39,12 +38,7 @@ export default function DevicesManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchDevices = async () => {
-    const querySnapshot = await getDocs(collection(db, "devices"));
-    const list: DeviceData[] = [];
-    querySnapshot.forEach((doc) => {
-      list.push({ id: doc.id, ...doc.data() } as DeviceData);
-    });
-    setDevices(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setDevices(await api<DeviceData[]>("/api/devices"));
   };
 
   useEffect(() => {
@@ -60,7 +54,7 @@ export default function DevicesManagement() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 600; // Small width to ensure under 1MB Firestore limit
+          const MAX_WIDTH = 600; // Küçük tutarak veritabanındaki görsel boyutunu sınırla
           let width = img.width;
           let height = img.height;
 
@@ -118,11 +112,10 @@ export default function DevicesManagement() {
       }
 
       if (editingId) {
-        await updateDoc(doc(db, "devices", editingId), deviceData);
+        await api(`/api/devices/${editingId}`, { method: "PUT", body: deviceData });
         setMessage("Cihaz başarıyla güncellendi.");
       } else {
-        deviceData.createdAt = new Date().toISOString();
-        await addDoc(collection(db, "devices"), deviceData);
+        await api("/api/devices", { method: "POST", body: deviceData });
         setMessage("Cihaz başarıyla eklendi.");
       }
 
@@ -165,7 +158,7 @@ export default function DevicesManagement() {
   const handleDelete = async (id: string) => {
     if (confirm("Bu cihazı silmek istediğinize emin misiniz?")) {
       try {
-        await deleteDoc(doc(db, "devices", id));
+        await api(`/api/devices/${id}`, { method: "DELETE" });
         fetchDevices();
       } catch (error) {
         alert("Silinirken hata oluştu.");

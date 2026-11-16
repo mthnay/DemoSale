@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -25,15 +24,7 @@ export default function MyRequests() {
     const fetchRequests = async () => {
       if (!user) return;
       try {
-        const q = query(collection(db, "requests"), where("userId", "==", user.uid));
-        const querySnapshot = await getDocs(q);
-        const list: any[] = [];
-        querySnapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
-        // Sort in memory because Firestore requires index for where + orderBy
-        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setRequests(list);
+        setRequests(await api<any[]>("/api/requests?mine=1"));
       } catch (error) {
         console.error("Hata", error);
       } finally {

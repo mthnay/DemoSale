@@ -1,14 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
-      },
-    ],
-  },
+  // pg sunucu tarafında Node modülü olarak kalsın
+  serverExternalPackages: ["pg"],
 };
 
 export default nextConfig;

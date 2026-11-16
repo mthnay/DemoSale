@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, addDoc, collection, updateDoc, increment } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -31,11 +30,7 @@ export default function DeviceDetail() {
     const fetchDevice = async () => {
       if (!params.id) return;
       try {
-        const docRef = doc(db, "devices", params.id as string);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setDevice({ id: docSnap.id, ...docSnap.data() });
-        }
+        setDevice(await api(`/api/devices/${params.id}`));
       } catch (error) {
         console.error("Hata", error);
       } finally {
@@ -54,27 +49,12 @@ export default function DeviceDetail() {
     
     setRequesting(true);
     try {
-      // 1. Stoğu 1 düşür
-      await updateDoc(doc(db, "devices", device.id), {
-        stock: increment(-1)
-      });
-
-      // 2. Talebi oluştur
-      await addDoc(collection(db, "requests"), {
-        deviceId: device.id,
-        deviceName: device.name,
-        devicePrice: device.price,
-        userId: user!.uid,
-        userEmail: user!.email,
-        status: "pending", // pending, approved, rejected
-        createdAt: new Date().toISOString()
-      });
-
-      // Local state güncelle
-      setDevice({ ...device, stock: device.stock - 1 });
+      // Stok düşürme ve talep oluşturma sunucuda tek işlemde yapılır
+      const res = await api<{ stock: number }>("/api/requests", { method: "POST", body: { deviceId: device.id } });
+      setDevice({ ...device, stock: res.stock });
       setMessage("Talebiniz başarıyla oluşturuldu! Yöneticiler en kısa sürede dönüş yapacaktır.");
-    } catch (error) {
-      setMessage("Hata: Talep oluşturulamadı.");
+    } catch (error: any) {
+      setMessage("Hata: " + (error?.message || "Talep oluşturulamadı."));
     } finally {
       setRequesting(false);
     }

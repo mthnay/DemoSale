@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, doc, updateDoc, query, orderBy, increment } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 
 interface RequestData {
@@ -22,13 +21,7 @@ export default function AdminRequests() {
 
   const fetchRequests = async () => {
     try {
-      const q = query(collection(db, "requests"), orderBy("createdAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      const list: RequestData[] = [];
-      querySnapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() } as RequestData);
-      });
-      setRequests(list);
+      setRequests(await api<RequestData[]>("/api/requests"));
     } catch (error) {
       console.error("Hata", error);
     } finally {
@@ -43,18 +36,12 @@ export default function AdminRequests() {
   const handleUpdateStatus = async (id: string, deviceId: string, newStatus: "approved" | "rejected") => {
     if (!confirm(`Bu talebi ${newStatus === "approved" ? "onaylamak" : "reddetmek"} istediğinize emin misiniz?`)) return;
     try {
-      await updateDoc(doc(db, "requests", id), { status: newStatus });
-      
-      // Talebi reddederse stoğu geri ekle
-      if (newStatus === "rejected") {
-        await updateDoc(doc(db, "devices", deviceId), {
-          stock: increment(1)
-        });
-      }
+      // Reddedilirse stok sunucuda aynı işlemde geri eklenir
+      await api(`/api/requests/${id}`, { method: "PATCH", body: { status: newStatus } });
 
       fetchRequests();
-    } catch (error) {
-      alert("Hata oluştu.");
+    } catch (error: any) {
+      alert(error?.message || "Hata oluştu.");
     }
   };
 
