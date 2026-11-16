@@ -1,102 +1,147 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { Check, Inbox, MessageSquare, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
-import { motion } from "framer-motion";
+import { formatDate, formatPrice, STATUS_LABEL, timeAgo } from "@/lib/format";
+import type { PurchaseRequest } from "@/lib/types";
+import { EmptyState, Skeleton, StatusBadge } from "@/components/ui";
+import { useFeedback } from "@/components/Feedback";
 
-interface RequestData {
-  id: string;
-  deviceId: string;
-  deviceName: string;
-  devicePrice: number;
-  userId: string;
-  userEmail: string;
-  status: "pending" | "approved" | "rejected";
-  createdAt: string;
-}
+const TABS = ["pending", "approved", "rejected", "cancelled", "all"] as const;
 
 export default function AdminRequests() {
-  const [requests, setRequests] = useState<RequestData[]>([]);
+  const { toast, confirm } = useFeedback();
+  const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const fetchRequests = async () => {
-    try {
-      setRequests(await api<RequestData[]>("/api/requests"));
-    } catch (error) {
-      console.error("Hata", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [tab, setTab] = useState<(typeof TABS)[number]>("pending");
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    api<PurchaseRequest[]>("/api/requests")
+      .then(setRequests)
+      .catch((e) => toast((e as Error).message, "error"))
+      .finally(() => setLoading(false));
+  }, [toast]);
 
-  const handleUpdateStatus = async (id: string, deviceId: string, newStatus: "approved" | "rejected") => {
-    if (!confirm(`Bu talebi ${newStatus === "approved" ? "onaylamak" : "reddetmek"} istediğinize emin misiniz?`)) return;
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: requests.length };
+    for (const r of requests) c[r.status] = (c[r.status] ?? 0) + 1;
+    return c;
+  }, [requests]);
+
+  const visible = useMemo(() => {
+    const term = q.trim().toLocaleLowerCase("tr");
+    return requests.filter(
+      (r) =>
+        (tab === "all" || r.status === tab) &&
+        (!term || `${r.deviceName} ${r.userEmail}`.toLocaleLowerCase("tr").includes(term))
+    );
+  }, [requests, tab, q]);
+
+  const decide = async (r: PurchaseRequest, status: "approved" | "rejected") => {
+    const ok = await confirm({
+      title: status === "approved" ? "Talep onaylansın mı?" : "Talep reddedilsin mi?",
+      description:
+        status === "approved"
+          ? `${r.userEmail} kullanıcısının ${r.deviceName} talebi onaylanacak.`
+          : `${r.deviceName} talebi reddedilecek ve 1 adet stoğa geri eklenecek.`,
+      confirmLabel: status === "approved" ? "Onayla" : "Reddet",
+      tone: status === "rejected" ? "danger" : "default",
+    });
+    if (!ok) return;
+    setBusy(r.id);
     try {
-      // Reddedilirse stok sunucuda aynı işlemde geri eklenir
-      await api(`/api/requests/${id}`, { method: "PATCH", body: { status: newStatus } });
-
-      fetchRequests();
-    } catch (error: any) {
-      alert(error?.message || "Hata oluştu.");
+      await api(`/api/requests/${r.id}`, { method: "PATCH", body: { status } });
+      setRequests((list) => list.map((x) => (x.id === r.id ? { ...x, status, decidedAt: new Date().toISOString() } : x)));
+      toast(status === "approved" ? "Talep onaylandı." : "Talep reddedildi, stok geri eklendi.");
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setBusy(null);
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-      <h1 style={{ fontSize: "28px", fontWeight: 700, marginBottom: "24px" }}>Cihaz Talepleri</h1>
-      
-      <div className="glass-panel" style={{ padding: "24px" }}>
-        {loading ? (
-          <p>Yükleniyor...</p>
-        ) : requests.length === 0 ? (
-          <p>Henüz hiçbir talep bulunmuyor.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {requests.map((req) => (
-              <div key={req.id} style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", padding: "16px", background: "rgba(0,0,0,0.02)", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.05)" }}>
-                <div>
-                  <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "4px" }}>{req.deviceName}</h3>
-                  <div style={{ fontSize: "13px", color: "#666", marginBottom: "8px" }}>Talep Eden: {req.userEmail} | Tarih: {new Date(req.createdAt).toLocaleDateString("tr-TR")}</div>
-                  <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--primary)" }}>{req.devicePrice.toLocaleString("tr-TR")} ₺</div>
-                </div>
-                
-                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                  {req.status === "pending" && (
-                    <span style={{ padding: "4px 10px", background: "rgba(255, 149, 0, 0.1)", color: "var(--warning)", borderRadius: "8px", fontSize: "12px", fontWeight: 600 }}>Bekliyor</span>
-                  )}
-                  {req.status === "approved" && (
-                    <span style={{ padding: "4px 10px", background: "rgba(52, 199, 89, 0.1)", color: "var(--success)", borderRadius: "8px", fontSize: "12px", fontWeight: 600 }}>Onaylandı</span>
-                  )}
-                  {req.status === "rejected" && (
-                    <span style={{ padding: "4px 10px", background: "rgba(255, 59, 48, 0.1)", color: "var(--danger)", borderRadius: "8px", fontSize: "12px", fontWeight: 600 }}>Reddedildi</span>
-                  )}
+    <div className="stack" style={{ ["--gap" as string]: "20px" }}>
+      <header>
+        <span className="eyebrow">Satış akışı</span>
+        <h1 className="display h2" style={{ marginTop: 10 }}>Talepler</h1>
+      </header>
 
-                  {req.status === "pending" && (
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button 
-                        onClick={() => handleUpdateStatus(req.id, req.deviceId, "approved")}
-                        style={{ padding: "8px 16px", background: "var(--success)", color: "white", borderRadius: "8px", fontSize: "13px", fontWeight: 600 }}
-                      >
-                        Onayla
+      <div className="row" style={{ ["--gap" as string]: "12px" }}>
+        <LayoutGroup id="admin-req-tabs">
+          <div className="tabs" role="tablist" aria-label="Duruma göre filtrele">
+            {TABS.map((t) => (
+              <button key={t} role="tab" aria-selected={tab === t} aria-controls="admin-req-panel" className="tab" onClick={() => setTab(t)}>
+                {tab === t && <motion.span layoutId="admin-req-tab" className="nav__pill" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
+                <span>{t === "all" ? "Tümü" : STATUS_LABEL[t]}</span>
+                <span className="chip__count">{counts[t] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+        </LayoutGroup>
+        <label className="input-wrap" style={{ flex: "1 1 240px" }}>
+          <span className="sr-only">Cihaz veya kullanıcı ara</span>
+          <Search size={18} aria-hidden="true" />
+          <input className="input" type="search" placeholder="Cihaz veya e-posta ara…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </label>
+      </div>
+
+      <section id="admin-req-panel" role="tabpanel" aria-busy={loading}>
+        {loading ? (
+          <div className="list" aria-hidden="true">{[0, 1, 2, 3].map((i) => <Skeleton key={i} style={{ height: 84, borderRadius: 18 }} />)}</div>
+        ) : visible.length === 0 ? (
+          <div className="glass">
+            <EmptyState icon={<Inbox size={32} />} title={tab === "pending" ? "Bekleyen talep yok" : "Talep bulunamadı"}>
+              {tab === "pending" && <p className="muted">Her şey yolunda — gelen kutusu boş. 🎉</p>}
+            </EmptyState>
+          </div>
+        ) : (
+          <ul className="list" role="list">
+            <AnimatePresence initial={false}>
+              {visible.map((r, i) => (
+                <motion.li
+                  key={r.id}
+                  layout
+                  className="list-item"
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 10) * 0.03 } }}
+                  exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
+                >
+                  <div className="list-item__main">
+                    <div className="list-item__title">{r.deviceName}</div>
+                    <div className="list-item__meta">
+                      <span>{r.userEmail}</span>
+                      <span>{formatDate(r.createdAt)}</span>
+                      {r.decidedAt && <span>Karar: {timeAgo(r.decidedAt)}</span>}
+                    </div>
+                    {r.note && (
+                      <div className="list-item__meta" style={{ marginTop: 6, color: "var(--text-muted)" }}>
+                        <MessageSquare size={13} aria-hidden="true" /> <span>{r.note}</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="display mono" style={{ fontSize: 19 }}>{formatPrice(r.devicePrice)} ₺</span>
+                  <StatusBadge status={r.status} />
+                  {r.status === "pending" && (
+                    <div className="row" style={{ ["--gap" as string]: "8px" }}>
+                      <button className="btn btn--success btn--sm" disabled={busy === r.id} onClick={() => decide(r, "approved")} aria-label={`${r.userEmail} — ${r.deviceName} talebini onayla`}>
+                        <Check size={16} aria-hidden="true" /> Onayla
                       </button>
-                      <button 
-                        onClick={() => handleUpdateStatus(req.id, req.deviceId, "rejected")}
-                        style={{ padding: "8px 16px", background: "rgba(255,59,48,0.1)", color: "var(--danger)", borderRadius: "8px", fontSize: "13px", fontWeight: 600 }}
-                      >
-                        Reddet
+                      <button className="btn btn--danger btn--sm" disabled={busy === r.id} onClick={() => decide(r, "rejected")} aria-label={`${r.userEmail} — ${r.deviceName} talebini reddet`}>
+                        <X size={16} aria-hidden="true" /> Reddet
                       </button>
                     </div>
                   )}
-                </div>
-              </div>
-            ))}
-          </div>
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
         )}
-      </div>
-    </motion.div>
+      </section>
+    </div>
   );
 }

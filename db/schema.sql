@@ -19,10 +19,18 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- E-posta kuralı: @artitroy.com + tekil istisnalar (lib/auth.ts EXTRA_ALLOWED_EMAILS ile aynı)
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_check;
-ALTER TABLE users ADD CONSTRAINT users_email_check CHECK (
-  email = lower(email) AND (email LIKE '%@artitroy.com' OR email IN ('mthnay@outlook.com'))
-);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'users_email_check'
+       AND pg_get_constraintdef(oid) LIKE '%mthnay@outlook.com%'
+  ) THEN
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_check;
+    ALTER TABLE users ADD CONSTRAINT users_email_check CHECK (
+      email = lower(email) AND (email LIKE '%@artitroy.com' OR email IN ('mthnay@outlook.com'))
+    );
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash text PRIMARY KEY,               -- sha256(çerezdeki token), token düz saklanmaz
@@ -61,3 +69,29 @@ CREATE TABLE IF NOT EXISTS requests (
 CREATE INDEX IF NOT EXISTS requests_user_idx ON requests(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS requests_status_idx ON requests(status);
 CREATE INDEX IF NOT EXISTS requests_created_idx ON requests(created_at DESC);
+
+-- ---------------------------------------------------------------
+-- v2: talep notu, karar bilgisi, iptal durumu, kullanıcı adı ve son giriş
+-- ---------------------------------------------------------------
+ALTER TABLE users    ADD COLUMN IF NOT EXISTS full_name     text NOT NULL DEFAULT '';
+ALTER TABLE users    ADD COLUMN IF NOT EXISTS last_login_at timestamptz;
+
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS note       text NOT NULL DEFAULT '';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS decided_at timestamptz;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS decided_by uuid REFERENCES users(id) ON DELETE SET NULL;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'requests_status_check'
+       AND pg_get_constraintdef(oid) LIKE '%cancelled%'
+  ) THEN
+    ALTER TABLE requests DROP CONSTRAINT IF EXISTS requests_status_check;
+    ALTER TABLE requests ADD CONSTRAINT requests_status_check
+      CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled'));
+  END IF;
+END $$;
+
+-- Aynı kullanıcı aynı cihaz için aynı anda yalnızca bir bekleyen talep açabilir
+CREATE UNIQUE INDEX IF NOT EXISTS requests_one_pending_per_user_device
+  ON requests(user_id, device_id) WHERE status = 'pending';

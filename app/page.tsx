@@ -1,175 +1,196 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { PackageSearch, Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { motion } from "framer-motion";
 import { api } from "@/lib/api";
-import Image from "next/image";
-import Link from "next/link";
-import { Settings } from "lucide-react";
+import { CATEGORIES } from "@/lib/format";
+import type { Device } from "@/lib/types";
+import TopBar from "@/components/TopBar";
+import DeviceCard from "@/components/DeviceCard";
+import { CountUp, EmptyState, Skeleton } from "@/components/ui";
+import { useFeedback } from "@/components/Feedback";
 
-interface DeviceData {
-  id: string;
-  name: string;
-  price: number;
-  batteryHealth: number;
-  grade: "A" | "B" | "C";
-  warranty: string;
-  category: string;
-  stock: number;
-  description: string;
-  imageUrl: string;
-}
+type Sort = "new" | "price-asc" | "price-desc" | "battery";
 
 export default function Home() {
-  const { user, loading, role, logout } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
-  const [devices, setDevices] = useState<DeviceData[]>([]);
+  const { toast } = useFeedback();
+  const [devices, setDevices] = useState<Device[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState("Tümü");
-  const categories = ["Tümü", "iPhone", "iPad", "Mac", "Apple Watch", "AirPods", "Aksesuar"];
+  const [category, setCategory] = useState("Tümü");
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<Sort>("new");
+  const [inStock, setInStock] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
+    if (!loading && !user) router.replace("/login");
   }, [user, loading, router]);
 
   useEffect(() => {
-    const fetchDevices = async () => {
-      try {
-        setDevices(await api<DeviceData[]>("/api/devices"));
-      } catch (error) {
-        console.error("Error fetching devices", error);
-      } finally {
-        setFetching(false);
-      }
+    if (!user) return;
+    api<Device[]>("/api/devices")
+      .then(setDevices)
+      .catch((e) => toast((e as Error).message, "error"))
+      .finally(() => setFetching(false));
+  }, [user, toast]);
+
+  const counts = useMemo(() => {
+    const m: Record<string, number> = { Tümü: devices.length };
+    for (const d of devices) m[d.category] = (m[d.category] ?? 0) + 1;
+    return m;
+  }, [devices]);
+
+  const visible = useMemo(() => {
+    const term = q.trim().toLocaleLowerCase("tr");
+    const list = devices.filter(
+      (d) =>
+        (category === "Tümü" || d.category === category) &&
+        (!inStock || d.stock > 0) &&
+        (!term || `${d.name} ${d.description}`.toLocaleLowerCase("tr").includes(term))
+    );
+    const sorters: Record<Sort, (a: Device, b: Device) => number> = {
+      new: (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+      "price-asc": (a, b) => a.price - b.price,
+      "price-desc": (a, b) => b.price - a.price,
+      battery: (a, b) => b.batteryHealth - a.batteryHealth,
     };
+    return list.sort(sorters[sort]);
+  }, [devices, category, q, sort, inStock]);
 
-    if (user) {
-      fetchDevices();
-    }
-  }, [user]);
+  const totalStock = devices.reduce((s, d) => s + d.stock, 0);
+  const minPrice = devices.length ? Math.min(...devices.map((d) => d.price)) : 0;
 
-  if (loading || !user) return <div style={{ padding: 40, textAlign: "center", color: "#666" }}>Yükleniyor...</div>;
-
-  const filteredDevices = devices.filter(d => selectedCategory === "Tümü" || d.category === selectedCategory);
+  if (loading || !user) return null;
 
   return (
-    <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", flexWrap: "wrap", gap: "20px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.5px" }}> Troy Demo Cihazları</h1>
-        <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-          <span style={{ fontSize: "14px", color: "#666", display: "none" }}>
-            {user.email}
-          </span>
-          {role === "admin" && (
-            <Link href="/admin" className="btn-primary" style={{ background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", gap: "8px" }}>
-              <Settings size={16} /> Admin Paneli
-            </Link>
-          )}
-          <Link href="/requests" className="btn-primary" style={{ background: "rgba(0,0,0,0.05)", color: "var(--foreground)", padding: "8px 16px", fontSize: "13px" }}>
-            Taleplerim
-          </Link>
-          <button className="btn-primary" onClick={logout} style={{ padding: "8px 16px", fontSize: "13px", background: "rgba(255, 59, 48, 0.1)", color: "var(--danger)" }}>
-            Çıkış Yap
-          </button>
-        </div>
-      </header>
+    <>
+      <TopBar />
+      <main id="main" className="container page">
+        {/* Hero */}
+        <section aria-labelledby="catalog-title" style={{ padding: "clamp(24px, 6vw, 72px) 0 clamp(28px, 4vw, 48px)" }}>
+          <motion.span className="eyebrow" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <span className="eyebrow__dot" aria-hidden="true" /> Stok canlı güncelleniyor
+          </motion.span>
+          <motion.h1
+            id="catalog-title"
+            className="display h1"
+            style={{ marginTop: 18, maxWidth: "14ch" }}
+            initial={{ opacity: 0, y: 40, filter: "blur(12px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ type: "spring", stiffness: 90, damping: 18 }}
+          >
+            Merhaba{user.fullName ? `, ${user.fullName.split(" ")[0]}` : ""}. <span className="gradient-text">Sıradaki cihazın</span> burada.
+          </motion.h1>
 
-      {fetching ? (
-        <div style={{ textAlign: "center", color: "#666", padding: "40px" }}>Cihazlar yükleniyor...</div>
-      ) : (
-        <>
-          <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "20px", marginBottom: "20px", scrollbarWidth: "none" }}>
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: "20px",
-                  border: "none",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  background: selectedCategory === cat ? "var(--foreground)" : "rgba(0,0,0,0.05)",
-                  color: selectedCategory === cat ? "var(--background)" : "var(--foreground)",
-                  transition: "all 0.2s"
-                }}
-              >
-                {cat}
-              </button>
+          <motion.dl
+            className="row"
+            style={{ ["--gap" as string]: "clamp(20px, 5vw, 56px)", marginTop: 36 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+          >
+            {[
+              { label: "Cihaz", value: devices.length },
+              { label: "Stoktaki adet", value: totalStock },
+              { label: "Başlangıç fiyatı (₺)", value: minPrice },
+            ].map((s) => (
+              <div key={s.label}>
+                <dt className="dim" style={{ fontSize: 13, fontWeight: 600 }}>{s.label}</dt>
+                <dd className="display mono" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>
+                  {fetching ? "—" : <CountUp value={s.value} />}
+                </dd>
+              </div>
+            ))}
+          </motion.dl>
+        </section>
+
+        {/* Filtreler */}
+        <section aria-label="Filtreler" className="stack" style={{ ["--gap" as string]: "16px", marginBottom: 28 }}>
+          <div className="row" style={{ ["--gap" as string]: "12px" }}>
+            <label className="input-wrap" style={{ flex: "1 1 280px" }}>
+              <span className="sr-only">Cihaz ara</span>
+              <Search size={18} aria-hidden="true" />
+              <input className="input" type="search" placeholder="Model, renk, kapasite ara…" value={q} onChange={(e) => setQ(e.target.value)} />
+              {q && (
+                <button type="button" className="input-wrap__action" onClick={() => setQ("")} aria-label="Aramayı temizle">
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
+            </label>
+            <label style={{ flex: "0 1 220px" }}>
+              <span className="sr-only">Sıralama</span>
+              <select className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+                <option value="new">En yeni</option>
+                <option value="price-asc">Fiyat: artan</option>
+                <option value="price-desc">Fiyat: azalan</option>
+                <option value="battery">Pil sağlığı</option>
+              </select>
+            </label>
+            <label className="switch">
+              <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} />
+              <span className="switch__track" aria-hidden="true" />
+              Sadece stoktakiler
+            </label>
+          </div>
+
+          <LayoutGroup id="cats">
+            <div className="chips" role="group" aria-label="Kategori">
+              {["Tümü", ...CATEGORIES].map((c) => {
+                const active = category === c;
+                return (
+                  <button key={c} className="chip" aria-pressed={active} onClick={() => setCategory(c)}>
+                    {active && <motion.span layoutId="chip-bg" className="chip__bg" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
+                    <span className="chip__label">
+                      {c}
+                      <span className="chip__count">{counts[c] ?? 0}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </LayoutGroup>
+        </section>
+
+        <p className="sr-only" role="status" aria-live="polite">
+          {fetching ? "Cihazlar yükleniyor" : `${visible.length} cihaz listeleniyor`}
+        </p>
+
+        {fetching ? (
+          <div className="grid-cards" aria-hidden="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card">
+                <Skeleton style={{ aspectRatio: "4/3", borderRadius: 0 }} />
+                <div className="card__body">
+                  <Skeleton style={{ height: 20, width: "70%" }} />
+                  <Skeleton style={{ height: 30, width: "40%" }} />
+                  <Skeleton style={{ height: 54 }} />
+                </div>
+              </div>
             ))}
           </div>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "24px" }}
-          >
-            {filteredDevices.length === 0 ? (
-              <div className="glass-panel" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "80px 20px", color: "#666", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginTop: "20px" }}>
-                <div style={{ fontSize: "48px", marginBottom: "16px" }}>📦</div>
-                <h2 style={{ fontSize: "20px", fontWeight: 600, color: "var(--foreground)", marginBottom: "8px" }}>Bu kategoride ürün bulunamadı</h2>
-                <p style={{ fontSize: "15px", maxWidth: "400px", lineHeight: "1.5" }}>Şu anda <b>{selectedCategory}</b> kategorisinde stoğumuzda satılık demo cihaz bulunmamaktadır.</p>
-                <button onClick={() => setSelectedCategory("Tümü")} className="btn-primary" style={{ marginTop: "24px", background: "rgba(0,0,0,0.05)", color: "var(--foreground)", padding: "10px 20px" }}>
-                  Tüm Cihazları Göster
-                </button>
-              </div>
-            ) : (
-              filteredDevices.map((d) => (
-                <div key={d.id} className="glass-panel" style={{ display: "flex", flexDirection: "column", overflow: "hidden", transition: "transform 0.2s", opacity: d.stock <= 0 ? 0.6 : 1 }}>
-                  <div style={{ position: "relative", width: "100%", height: "220px", background: "#f5f5f7", overflow: "hidden" }}>
-                    {d.stock <= 0 && (
-                      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 10, background: "rgba(255, 59, 48, 0.9)", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>
-                        Tükendi
-                      </div>
-                    )}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={
-                        d.category === "iPhone" ? "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=500&q=80" :
-                        d.category === "iPad" ? "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=500&q=80" :
-                        d.category === "Mac" ? "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=500&q=80" :
-                        d.category === "Apple Watch" ? "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?auto=format&fit=crop&w=500&q=80" :
-                        d.category === "AirPods" ? "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=500&q=80" :
-                        "https://images.unsplash.com/photo-1588156979402-15f5a8cb5d94?auto=format&fit=crop&w=500&q=80"
-                      } 
-                      alt={d.category} 
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-                    />
-                  </div>
-                  <div style={{ padding: "24px", display: "flex", flexDirection: "column", flex: 1 }}>
-                    <h3 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "8px" }}>{d.name}</h3>
-                    <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--foreground)", marginBottom: "16px" }}>
-                      {d.price.toLocaleString("tr-TR")} ₺
-                    </div>
-                    
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
-                      <span style={{ fontSize: "12px", padding: "4px 10px", background: "rgba(0,0,0,0.05)", borderRadius: "10px", fontWeight: 500 }}>🔋 %{d.batteryHealth} Pil</span>
-                      <span style={{ fontSize: "12px", padding: "4px 10px", background: "rgba(0,0,0,0.05)", borderRadius: "10px", fontWeight: 500 }}>✨ Grade {d.grade}</span>
-                      <span style={{ fontSize: "12px", padding: "4px 10px", background: "rgba(0,0,0,0.05)", borderRadius: "10px", fontWeight: 500 }}>🛡 {d.warranty}</span>
-                      <span style={{ fontSize: "12px", padding: "4px 10px", background: "rgba(0,0,0,0.05)", borderRadius: "10px", fontWeight: 500 }}>📦 Stok: {d.stock || 0}</span>
-                    </div>
-                    
-                    <p style={{ fontSize: "13px", color: "#666", marginBottom: "20px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {d.description || "Ekstra açıklama yok."}
-                    </p>
-
-                    <Link href={`/device/${d.id}`} className="btn-primary" style={{ marginTop: "auto", textAlign: "center", display: "block" }}>
-                      İncele ve Talep Et
-                    </Link>
-                  </div>
-                </div>
-              ))
-            )}
+        ) : visible.length === 0 ? (
+          <div className="glass">
+            <EmptyState icon={<PackageSearch size={32} />} title="Eşleşen cihaz yok">
+              <p className="muted" style={{ maxWidth: 420 }}>Filtreleri gevşetmeyi dene ya da kısa bir süre sonra tekrar bak — stok sık yenileniyor.</p>
+              <button className="btn btn--ghost" onClick={() => { setCategory("Tümü"); setQ(""); setInStock(false); }}>
+                Filtreleri sıfırla
+              </button>
+            </EmptyState>
+          </div>
+        ) : (
+          <motion.div layout className="grid-cards">
+            <AnimatePresence mode="popLayout">
+              {visible.map((d, i) => (
+                <DeviceCard key={d.id} device={d} index={i} />
+              ))}
+            </AnimatePresence>
           </motion.div>
-        </>
-      )}
-    </div>
+        )}
+      </main>
+    </>
   );
 }

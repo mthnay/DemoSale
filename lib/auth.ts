@@ -17,6 +17,7 @@ export interface SessionUser {
   id: string;
   email: string;
   role: Role;
+  fullName: string;
 }
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -29,8 +30,9 @@ export async function createSession(userId: string) {
     userId,
     expires,
   ]);
-  // Süresi dolmuş oturumları temizle
+  // Süresi dolmuş oturumları temizle, son giriş zamanını yaz
   await query("DELETE FROM sessions WHERE expires_at < now()");
+  await query("UPDATE users SET last_login_at = now() WHERE id = $1", [userId]);
 
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
@@ -54,12 +56,22 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const rows = await query<SessionUser>(
-    `SELECT u.id, u.email, u.role
+    `SELECT u.id, u.email, u.role, u.full_name AS "fullName"
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.expires_at > now()`,
     [hashToken(token)]
   );
   return rows[0] ?? null;
+}
+
+/** Kullanıcının oturumlarını kapatır; exceptCurrent verilirse mevcut oturum korunur. */
+export async function revokeUserSessions(userId: string, exceptCurrent = false) {
+  let keep: string | null = null;
+  if (exceptCurrent) {
+    const token = (await cookies()).get(SESSION_COOKIE)?.value;
+    keep = token ? hashToken(token) : null;
+  }
+  await query("DELETE FROM sessions WHERE user_id = $1 AND token_hash IS DISTINCT FROM $2", [userId, keep]);
 }
 
 export class HttpError extends Error {
@@ -88,6 +100,13 @@ export async function handle(fn: () => Promise<unknown>) {
   } catch (err) {
     if (err instanceof HttpError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    const code = (err as { code?: string })?.code;
+    if (code === "23505") {
+      return NextResponse.json({ error: "Bu kayıt zaten mevcut." }, { status: 409 });
+    }
+    if (code === "23514" || code === "22P02") {
+      return NextResponse.json({ error: "Geçersiz veri." }, { status: 400 });
     }
     console.error(err);
     return NextResponse.json({ error: "Sunucu hatası." }, { status: 500 });

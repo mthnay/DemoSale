@@ -8,7 +8,7 @@ export const DEVICE_COLUMNS = `
 export const REQUEST_COLUMNS = `
   r.id, r.device_id AS "deviceId", r.device_name AS "deviceName",
   r.device_price::float8 AS "devicePrice", r.user_id AS "userId", u.email AS "userEmail",
-  r.status, r.created_at AS "createdAt"`;
+  r.status, r.note, r.created_at AS "createdAt", r.decided_at AS "decidedAt"`;
 
 export const isUuid = (s: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
