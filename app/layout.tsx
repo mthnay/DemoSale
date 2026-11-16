@@ -8,8 +8,8 @@ const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-inter",
 const display = Space_Grotesk({ subsets: ["latin", "latin-ext"], variable: "--font-display-face", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Troy Demo", template: "%s · Troy Demo" },
-  description: "Troy personeli için demo ve teşhir cihazları satış portalı",
+  title: { default: "DemoSale", template: "%s · DemoSale" },
+  description: "Personel için demo ve teşhir cihazları satış portalı",
 };
 
 export const viewport: Viewport = {

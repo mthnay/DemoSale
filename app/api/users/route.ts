@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const role = body.role === "admin" ? "admin" : "user";
 
     if (!isAllowedEmail(email)) {
-      throw new HttpError(400, "Sadece @artitroy.com uzantılı e-posta eklenebilir.");
+      throw new HttpError(400, "Geçerli bir e-posta adresi girin.");
     }
     if (password.length < 8) throw new HttpError(400, "Şifre en az 8 karakter olmalı.");
 

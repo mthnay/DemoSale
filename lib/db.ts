@@ -1,12 +1,12 @@
 import "server-only";
 import { Pool, type PoolClient } from "pg";
 
-// Bağlantı: DATABASE_URL (ör. postgresql://troydemosales:***@127.0.0.1:5432/merkez)
-// Şema: DB_SCHEMA (varsayılan "troydemosales"), her bağlantıda search_path olarak ayarlanır.
-const schema = process.env.DB_SCHEMA || "troydemosales";
+// Bağlantı: DATABASE_URL (ör. postgresql://demosale:***@127.0.0.1:5432/merkez)
+// Şema: DB_SCHEMA (varsayılan "demosale"), her bağlantıda search_path olarak ayarlanır.
+const schema = process.env.DB_SCHEMA || "demosale";
 if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error("Geçersiz DB_SCHEMA");
 
-const globalForPg = globalThis as unknown as { troyPool?: Pool };
+const globalForPg = globalThis as unknown as { demoSalePool?: Pool };
 
 function createPool() {
   if (!process.env.DATABASE_URL) {
@@ -21,8 +21,8 @@ function createPool() {
 
 // Havuz ilk sorguda oluşturulur; böylece build sırasında DB/ortam değişkeni gerekmez.
 function pool(): Pool {
-  if (!globalForPg.troyPool) globalForPg.troyPool = createPool();
-  return globalForPg.troyPool;
+  if (!globalForPg.demoSalePool) globalForPg.demoSalePool = createPool();
+  return globalForPg.demoSalePool;
 }
 
 export async function query<T = Record<string, unknown>>(text: string, params: unknown[] = []) {

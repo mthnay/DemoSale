@@ -6,7 +6,7 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 // Zamanlama farkıyla kullanıcı varlığı sızmasın diye, kullanıcı yoksa da hash karşılaştırılır.
 let dummyHash: string | null = null;
-const getDummyHash = () => (dummyHash ??= bcrypt.hashSync("troy-dummy-password", 12));
+const getDummyHash = () => (dummyHash ??= bcrypt.hashSync("demosale-dummy-password", 12));
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   return handle(async () => {
     if (!isAllowedEmail(normalized)) {
-      throw new HttpError(400, "Sadece @artitroy.com e-posta adresleri giriş yapabilir.");
+      throw new HttpError(400, "Geçerli bir e-posta adresi girin.");
     }
     const rows = await query<{ id: string; email: string; role: string; full_name: string; password_hash: string }>(
       "SELECT id, email, role, full_name, password_hash FROM users WHERE email = $1",

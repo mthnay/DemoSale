@@ -56,8 +56,8 @@ function LoginForm() {
     e.preventDefault();
     setError("");
     const normalized = email.trim().toLowerCase();
-    if (!normalized.endsWith("@artitroy.com") && normalized !== "mthnay@outlook.com") {
-      setError("Sadece @artitroy.com e-posta adresleri giriş yapabilir.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      setError("Geçerli bir e-posta adresi girin.");
       return;
     }
     setSubmitting(true);
@@ -79,7 +79,7 @@ function LoginForm() {
     >
       <div className="stack" style={{ ["--gap" as string]: "6px", marginBottom: 28 }}>
         <h2 className="display h2">Hoş geldin</h2>
-        <p className="muted">Kurumsal hesabınla giriş yap.</p>
+        <p className="muted">Hesabınla giriş yap.</p>
       </div>
 
       <form className="stack" style={{ ["--gap" as string]: "18px" }} onSubmit={handleLogin} noValidate>
@@ -92,7 +92,7 @@ function LoginForm() {
               type="email"
               inputMode="email"
               autoComplete="username"
-              placeholder="ad.soyad@artitroy.com"
+              placeholder="ad.soyad@sirket.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               aria-invalid={!!error}

@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="container admin">
       <aside className="glass sidebar" aria-label="Yönetim menüsü">
         <Link href="/admin" className="sidebar__brand" aria-label="Yönetim panosu">
-          <Brand sub={false} />
+          <Brand />
           <div className="dim" style={{ fontSize: 12, marginTop: 6, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>Yönetim</div>
         </Link>
         <nav className="sidebar__nav">

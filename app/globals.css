@@ -1,5 +1,5 @@
 /* =====================================================================
-   Troy Demo — tasarım sistemi
+   DemoSale — tasarım sistemi
    Koyu sinematik tema · cam yüzeyler · enerjik gradyanlar
    Erişilebilirlik: AA kontrast, görünür odak, prefers-reduced-motion
    ===================================================================== */
@@ -454,7 +454,7 @@ select.input option { background: #14141d; color: var(--text); }
   font-size: 17px;
   box-shadow: var(--shadow-glow);
 }
-.brand__sub { color: var(--text-dim); font-weight: 500; }
+.brand__accent { background: var(--grad-hot); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 .nav { display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-pill); background: var(--surface); border: 1px solid var(--border); }
 .nav__link {
@@ -524,7 +524,6 @@ select.input option { background: #14141d; color: var(--text); }
 @media (max-width: 760px) {
   .topbar .nav { display: none; }
   .mobile-nav { display: flex; }
-  .brand__sub { display: none; }
   .page { padding-bottom: 130px; }
 }
 

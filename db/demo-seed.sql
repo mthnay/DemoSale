@@ -1,6 +1,6 @@
 -- Göstermelik (demo) cihazlar. Tekrar çalıştırılabilir: aynı adlı cihaz varsa eklenmez.
 -- Kaldırmak için: db/demo-remove.sql
-SET search_path = troydemosales;
+SET search_path = demosale;
 INSERT INTO devices (name, price, battery_health, grade, warranty, category, stock, description, image_urls, created_at)
 SELECT v.name, v.price, v.bh, v.grade, v.warranty, v.category, v.stock, v.descr, v.imgs, now() - (v.age || ' days')::interval
 FROM (VALUES

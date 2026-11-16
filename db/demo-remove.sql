@@ -1,5 +1,5 @@
 -- Göstermelik cihazları kaldırır (bunlara bağlı talepler korunur, cihaz bağlantısı boşalır).
-SET search_path = troydemosales;
+SET search_path = demosale;
 DELETE FROM devices WHERE name IN (
   'iPhone 15 Pro 256 GB Natürel Titanyum',
   'iPhone 15 128 GB Pembe',

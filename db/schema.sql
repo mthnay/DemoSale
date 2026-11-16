@@ -1,14 +1,14 @@
--- TroyDemoSales şeması (PostgreSQL 16, merkez veritabanı)
+-- DemoSale şeması (PostgreSQL 16, merkez veritabanı)
 -- Tekrar çalıştırılabilir (idempotent).
 
 -- Şema normalde yönetici tarafından oluşturulur (db/setup-role.sql); uygulama rolünün
 -- veritabanında CREATE yetkisi olmadığı için yalnızca yoksa oluşturmayı dener.
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'troydemosales') THEN
-    CREATE SCHEMA troydemosales;
+  IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'demosale') THEN
+    CREATE SCHEMA demosale;
   END IF;
 END $$;
-SET search_path = troydemosales;
+SET search_path = demosale;
 
 CREATE TABLE IF NOT EXISTS users (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -18,16 +18,16 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
--- E-posta kuralı: @artitroy.com + tekil istisnalar (lib/auth.ts EXTRA_ALLOWED_EMAILS ile aynı)
+-- E-posta kuralı: küçük harf ve geçerli biçim (lib/auth.ts isAllowedEmail ile aynı)
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
      WHERE conname = 'users_email_check'
-       AND pg_get_constraintdef(oid) LIKE '%mthnay@outlook.com%'
+       AND pg_get_constraintdef(oid) LIKE '%[:space:]%'
   ) THEN
     ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_check;
     ALTER TABLE users ADD CONSTRAINT users_email_check CHECK (
-      email = lower(email) AND (email LIKE '%@artitroy.com' OR email IN ('mthnay@outlook.com'))
+      email = lower(email) AND email ~ '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$'
     );
   END IF;
 END $$;

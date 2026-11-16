@@ -7,9 +7,8 @@ import pg from "pg";
 
 const [emailArg, roleArg = "user"] = process.argv.slice(2);
 const email = String(emailArg ?? "").trim().toLowerCase();
-const EXTRA_ALLOWED_EMAILS = ["mthnay@outlook.com"];
-if (!(email.endsWith("@artitroy.com") || EXTRA_ALLOWED_EMAILS.includes(email)) || !["admin", "user"].includes(roleArg)) {
-  console.error("Kullanım: npm run user:create -- <ad@artitroy.com> <admin|user>");
+if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !["admin", "user"].includes(roleArg)) {
+  console.error("Kullanım: npm run user:create -- <e-posta> <admin|user>");
   process.exit(1);
 }
 if (!process.env.DATABASE_URL) {
@@ -63,7 +62,7 @@ if (process.stdin.isTTY) {
   }
 }
 
-const schema = process.env.DB_SCHEMA || "troydemosales";
+const schema = process.env.DB_SCHEMA || "demosale";
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
   options: `-c search_path=${schema}`,

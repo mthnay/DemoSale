@@ -44,8 +44,8 @@ export default function UsersManagement() {
     e.preventDefault();
     setFormError("");
     const normalized = email.trim().toLowerCase();
-    if (!normalized.endsWith("@artitroy.com") && normalized !== "mthnay@outlook.com") {
-      return setFormError("Sadece @artitroy.com uzantılı e-posta eklenebilir.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      return setFormError("Geçerli bir e-posta adresi girin.");
     }
     if (password.length < 8) return setFormError("Şifre en az 8 karakter olmalı.");
     setSaving(true);
@@ -187,7 +187,7 @@ export default function UsersManagement() {
           </label>
           <label className="field">
             <span className="field__label">E-posta</span>
-            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ad.soyad@artitroy.com" autoComplete="off" required />
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ad.soyad@sirket.com" autoComplete="off" required />
           </label>
           <label className="field">
             <span className="field__label">Geçici şifre</span>

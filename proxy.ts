@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Oturum çerezi olmayan ziyaretçileri sayfa düzeyinde girişe yönlendirir.
 // Asıl yetki kontrolü API'de (lib/auth.ts) yapılır; bu sadece hızlı bir ön kapıdır.
 export function proxy(request: NextRequest) {
-  const hasSession = request.cookies.has("troy_session");
+  const hasSession = request.cookies.has("ds_session");
   const { pathname } = request.nextUrl;
 
   if (!hasSession && pathname !== "/login") {

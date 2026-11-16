@@ -10,12 +10,12 @@ import { initials } from "@/lib/format";
 import { api } from "@/lib/api";
 import { Modal, useFeedback } from "./Feedback";
 
-export function Brand({ sub = true }: { sub?: boolean }) {
+export function Brand() {
   return (
     <span className="brand">
-      <span className="brand__mark" aria-hidden="true">T</span>
+      <span className="brand__mark" aria-hidden="true">D</span>
       <span>
-        Troy <span className="brand__sub">{sub ? "Demo" : ""}</span>
+        Demo<span className="brand__accent">Sale</span>
       </span>
     </span>
   );
@@ -90,7 +90,7 @@ export default function TopBar() {
     <>
       <header className="topbar" data-scrolled={scrolled}>
         <div className="container topbar__inner">
-          <Link href="/" aria-label="Troy Demo — ana sayfa">
+          <Link href="/" aria-label="DemoSale — ana sayfa">
             <Brand />
           </Link>
           <div className="spacer" />
